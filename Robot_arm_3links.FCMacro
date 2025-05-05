@@ -1,0 +1,268 @@
+import FreeCAD as App
+import Part
+from FreeCAD import Base
+doc = App.newDocument("RobotArm")
+base_width = 100
+base_length = 150
+base_height = 15
+hole_radius = 4
+hole_offset = 15
+
+link1_width = 30
+link1_height = 80
+link1_thickness = 20
+
+link2_length = 100 
+link2_width = 25
+link2_thickness = 15
+
+link3_width = 20
+link3_height = 80
+link3_thickness = 15
+
+hinge_radius = 8
+hinge_thickness = 5
+hinge_gap = 2
+hinge_pin_radius = 3
+
+gripper_width = 40
+gripper_height = 30
+gripper_finger_width = 10
+gripper_finger_length = 30
+gripper_thickness = 10
+def create_base():
+    base_box = Part.makeBox(base_length, base_width, base_height)
+    for x in [0, base_length]:
+        for y in [0, base_width]:
+            edge_pt = Base.Vector(x, y, 0)
+            corner_cylinder = Part.makeCylinder(10, base_height, edge_pt)
+            base_box = base_box.fuse(corner_cylinder)
+    holes = []
+    for x in [hole_offset, base_length - hole_offset]:
+        for y in [hole_offset, base_width - hole_offset]:
+            hole = Part.makeCylinder(hole_radius, base_height+2, 
+                                     Base.Vector(x, y, -1))
+            holes.append(hole)
+    combined_holes = holes[0]
+    for hole in holes[1:]:
+        combined_holes = combined_holes.fuse(hole)
+    
+    base_box = base_box.cut(combined_holes)
+    hinge_mount_width = 40
+    hinge_mount_length = 30
+    hinge_mount_height = 15
+    
+    hinge_mount = Part.makeBox(hinge_mount_length, hinge_mount_width, hinge_mount_height,
+                              Base.Vector(base_length/2 - hinge_mount_length/2, 
+                                         base_width/2 - hinge_mount_width/2, 
+                                         base_height))
+    
+    hinge_tab1 = Part.makeCylinder(hinge_radius, hinge_thickness,
+                                  Base.Vector(base_length/2, 
+                                             base_width/2 - hinge_mount_width/2, 
+                                             base_height + hinge_mount_height),
+                                  Base.Vector(0, 1, 0))
+    
+    hinge_tab2 = Part.makeCylinder(hinge_radius, hinge_thickness,
+                                  Base.Vector(base_length/2, 
+                                             base_width/2 + hinge_mount_width/2 - hinge_thickness, 
+                                             base_height + hinge_mount_height),
+                                  Base.Vector(0, 1, 0))
+    pin_hole1 = Part.makeCylinder(hinge_pin_radius, hinge_thickness + 2,
+                                Base.Vector(base_length/2, 
+                                           base_width/2 - hinge_mount_width/2 - 1, 
+                                           base_height + hinge_mount_height),
+                                Base.Vector(0, 1, 0))
+    
+    pin_hole2 = Part.makeCylinder(hinge_pin_radius, hinge_thickness + 2,
+                                Base.Vector(base_length/2, 
+                                           base_width/2 + hinge_mount_width/2 - hinge_thickness - 1, 
+                                           base_height + hinge_mount_height),
+                                Base.Vector(0, 1, 0))
+    
+    hinge_tab1 = hinge_tab1.cut(pin_hole1)
+    hinge_tab2 = hinge_tab2.cut(pin_hole2)
+   
+    base_shape = base_box.fuse(hinge_mount).fuse(hinge_tab1).fuse(hinge_tab2)
+    
+    hinge_pin = Part.makeCylinder(hinge_pin_radius - 0.5, hinge_mount_width,
+                                 Base.Vector(base_length/2, 
+                                            base_width/2 - hinge_mount_width/2, 
+                                            base_height + hinge_mount_height),
+                                 Base.Vector(0, 1, 0))
+    base = doc.addObject("Part::Feature", "Base")
+    base.Shape = base_shape
+    base.ViewObject.ShapeColor = (0.1, 0.3, 0.5)
+    hinge_pin_obj = doc.addObject("Part::Feature", "BaseHingePin")
+    hinge_pin_obj.Shape = hinge_pin
+    hinge_pin_obj.ViewObject.ShapeColor = (0.7, 0.7, 0.7)  # Light gray
+    
+    return base
+def create_link1(base_obj):
+    mid_hinge = Part.makeCylinder(hinge_radius, hinge_thickness + 2*hinge_gap,
+                                 Base.Vector(base_length/2, 
+                                            base_width/2 - hinge_thickness - hinge_gap, 
+                                            base_height + 15),
+                                 Base.Vector(0, 1, 0))
+    hinge_hole = Part.makeCylinder(hinge_pin_radius, hinge_thickness + 2*hinge_gap + 2,
+                                  Base.Vector(base_length/2, 
+                                             base_width/2 - hinge_thickness - hinge_gap - 1, 
+                                             base_height + 15),
+                                  Base.Vector(0, 1, 0))
+    
+    mid_hinge = mid_hinge.cut(hinge_hole)
+    link1_box = Part.makeBox(link1_thickness, link1_width, link1_height, 
+                            Base.Vector(base_length/2 - link1_thickness/2, 
+                                        base_width/2 - link1_width/2, 
+                                        base_height + 15 + hinge_radius))
+    hinge1_l2 = Part.makeCylinder(hinge_radius, hinge_thickness,
+                                 Base.Vector(base_length/2, 
+                                            base_width/2 - link1_width/2, 
+                                            base_height + 15 + hinge_radius + link1_height),
+                                 Base.Vector(0, 1, 0))
+    
+    hinge2_l2 = Part.makeCylinder(hinge_radius, hinge_thickness,
+                                 Base.Vector(base_length/2, 
+                                            base_width/2 + link1_width/2 - hinge_thickness, 
+                                            base_height + 15 + hinge_radius + link1_height),
+                                 Base.Vector(0, 1, 0))
+    pin_hole_l2_1 = Part.makeCylinder(hinge_pin_radius, hinge_thickness + 2,
+                                    Base.Vector(base_length/2, 
+                                               base_width/2 - link1_width/2 - 1, 
+                                               base_height + 15 + hinge_radius + link1_height),
+                                    Base.Vector(0, 1, 0))
+    
+    pin_hole_l2_2 = Part.makeCylinder(hinge_pin_radius, hinge_thickness + 2,
+                                    Base.Vector(base_length/2, 
+                                               base_width/2 + link1_width/2 - hinge_thickness - 1, 
+                                               base_height + 15 + hinge_radius + link1_height),
+                                    Base.Vector(0, 1, 0))
+    
+    hinge1_l2 = hinge1_l2.cut(pin_hole_l2_1)
+    hinge2_l2 = hinge2_l2.cut(pin_hole_l2_2)
+   
+    link1_shape = mid_hinge.fuse(link1_box).fuse(hinge1_l2).fuse(hinge2_l2)
+    link1 = doc.addObject("Part::Feature", "Link1")
+    link1.Shape = link1_shape
+    link1.ViewObject.ShapeColor = (0.8, 0.2, 0.2) 
+    hinge_pin_l2 = Part.makeCylinder(hinge_pin_radius - 0.5, link1_width,
+                                   Base.Vector(base_length/2, 
+                                              base_width/2 - link1_width/2, 
+                                              base_height + 15 + hinge_radius + link1_height),
+                                   Base.Vector(0, 1, 0))
+    
+    hinge_pin_l2_obj = doc.addObject("Part::Feature", "Link1to2HingePin")
+    hinge_pin_l2_obj.Shape = hinge_pin_l2
+    hinge_pin_l2_obj.ViewObject.ShapeColor = (0.7, 0.7, 0.7)  # Light gray
+    
+    return link1
+def create_link2(link1_obj):
+    z_pos = base_height + 15 + hinge_radius + link1_height
+    mid_hinge_l2 = Part.makeCylinder(hinge_radius, link1_width + 2*hinge_gap,
+                                    Base.Vector(base_length/2, 
+                                               base_width/2 - link1_width/2 - hinge_gap, 
+                                               z_pos),
+                                    Base.Vector(0, 1, 0))
+    
+    hinge_hole_l2 = Part.makeCylinder(hinge_pin_radius, link1_width + 2*hinge_gap + 2,
+                                     Base.Vector(base_length/2, 
+                                                base_width/2 - link1_width/2 - hinge_gap - 1, 
+                                                z_pos),
+                                     Base.Vector(0, 1, 0))
+    
+    mid_hinge_l2 = mid_hinge_l2.cut(hinge_hole_l2)
+    link2_box = Part.makeBox(link2_length, link2_width, link2_thickness, 
+                            Base.Vector(base_length/2, 
+                                       base_width/2 - link2_width/2, 
+                                       z_pos - link2_thickness/2))
+    hinge1_l3 = Part.makeCylinder(hinge_radius, hinge_thickness,
+                                 Base.Vector(base_length/2 + link2_length, 
+                                            base_width/2 - link2_width/2, 
+                                            z_pos),
+                                 Base.Vector(0, 1, 0))
+    
+    hinge2_l3 = Part.makeCylinder(hinge_radius, hinge_thickness,
+                                 Base.Vector(base_length/2 + link2_length, 
+                                            base_width/2 + link2_width/2 - hinge_thickness, 
+                                            z_pos),
+                                 Base.Vector(0, 1, 0))
+    
+    pin_hole_l3_1 = Part.makeCylinder(hinge_pin_radius, hinge_thickness + 2,
+                                    Base.Vector(base_length/2 + link2_length, 
+                                               base_width/2 - link2_width/2 - 1, 
+                                               z_pos),
+                                    Base.Vector(0, 1, 0))
+    
+    pin_hole_l3_2 = Part.makeCylinder(hinge_pin_radius, hinge_thickness + 2,
+                                    Base.Vector(base_length/2 + link2_length, 
+                                               base_width/2 + link2_width/2 - hinge_thickness - 1, 
+                                               z_pos),
+                                    Base.Vector(0, 1, 0))
+    
+    hinge1_l3 = hinge1_l3.cut(pin_hole_l3_1)
+    hinge2_l3 = hinge2_l3.cut(pin_hole_l3_2)
+    link2_shape = mid_hinge_l2.fuse(link2_box).fuse(hinge1_l3).fuse(hinge2_l3)
+    link2 = doc.addObject("Part::Feature", "Link2")
+    link2.Shape = link2_shape
+    link2.ViewObject.ShapeColor = (0.2, 0.7, 0.3) 
+    hinge_pin_l3 = Part.makeCylinder(hinge_pin_radius - 0.5, link2_width,
+                                   Base.Vector(base_length/2 + link2_length, 
+                                              base_width/2 - link2_width/2, 
+                                              z_pos),
+                                   Base.Vector(0, 1, 0))
+    
+    hinge_pin_l3_obj = doc.addObject("Part::Feature", "Link2to3HingePin")
+    hinge_pin_l3_obj.Shape = hinge_pin_l3
+    hinge_pin_l3_obj.ViewObject.ShapeColor = (0.7, 0.7, 0.7)
+    return link2
+def create_link3(link2_obj):
+    z_pos = base_height + 15 + hinge_radius + link1_height
+    mid_hinge_l3 = Part.makeCylinder(hinge_radius, link2_width + 2*hinge_gap,
+                                    Base.Vector(base_length/2 + link2_length, 
+                                               base_width/2 - link2_width/2 - hinge_gap, 
+                                               z_pos),
+                                    Base.Vector(0, 1, 0))
+    hinge_hole_l3 = Part.makeCylinder(hinge_pin_radius, link2_width + 2*hinge_gap + 2,
+                                     Base.Vector(base_length/2 + link2_length, 
+                                                base_width/2 - link2_width/2 - hinge_gap - 1, 
+                                                z_pos),
+                                     Base.Vector(0, 1, 0))
+    mid_hinge_l3 = mid_hinge_l3.cut(hinge_hole_l3)
+    link3_box = Part.makeBox(link3_thickness, link3_width, link3_height, 
+                            Base.Vector(base_length/2 + link2_length - link3_thickness/2, 
+                                       base_width/2 - link3_width/2, 
+                                       z_pos + hinge_radius))
+    gripper_base_width = 40
+    gripper_base_height = 15
+    gripper_depth = 25
+    gripper_wall_thickness = 10
+    gripper_base = Part.makeBox(gripper_depth, gripper_base_width, gripper_base_height,
+                               Base.Vector(base_length/2 + link2_length - (gripper_depth)/2,
+                                          base_width/2 - gripper_base_width/2,
+                                          z_pos + hinge_radius + link3_height))
+    gripper_left = Part.makeBox(gripper_depth, gripper_wall_thickness, 30,
+                               Base.Vector(base_length/2 + link2_length - (gripper_depth)/2,
+                                          base_width/2 - gripper_base_width/2,
+                                          z_pos + hinge_radius + link3_height + gripper_base_height))
+    gripper_right = Part.makeBox(gripper_depth, gripper_wall_thickness, 30,
+                                Base.Vector(base_length/2 + link2_length - (gripper_depth)/2,
+                                           base_width/2 + gripper_base_width/2 - gripper_wall_thickness,
+                                           z_pos + hinge_radius + link3_height + gripper_base_height))
+    link3_shape = mid_hinge_l3.fuse(link3_box).fuse(gripper_base).fuse(gripper_left).fuse(gripper_right)
+    link3 = doc.addObject("Part::Feature", "Link3WithGripper")
+    link3.Shape = link3_shape
+    link3.ViewObject.ShapeColor = (0.9, 0.6, 0.0)  
+    return link3
+base = create_base()
+link1 = create_link1(base)
+link2 = create_link2(link1)
+link3 = create_link3(link2)
+doc.recompute()
+App.activeDocument().recompute()
+try:
+    import FreeCADGui as Gui
+    Gui.activeDocument().activeView().viewIsometric()
+    Gui.SendMsgToActiveView("ViewFit")
+except ImportError:
+    print("GUI functions not available in console mode")
+doc.saveAs("robot_arm.FCStd")
